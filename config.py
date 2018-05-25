@@ -22,3 +22,18 @@ class Config(object):
     SESSION_USE_SIGNER = True
     # 设置过期时间 要求SESSION_PERMANENT ,True 儿默认是31天
     SESSION_PERMANENT_LIFETIME = 60 * 60 * 24
+
+#  一下代码是封装不同开发环境下的配置信息
+class DevlopmentConfig(Config):
+    '''开发环境'''
+    DEBUGE = True
+
+class ProductionConfig(Config):
+    '''生产环境'''
+    DEBUGE = False
+
+class UnitestConfig(Config):
+    '''测试环境'''
+    DEBUGE = True
+    TESTING = True
+

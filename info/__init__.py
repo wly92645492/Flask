@@ -53,4 +53,9 @@ def create_app(config_name):
     # 指定session数据存储在后端的位置
     Session(app)
 
+    # 注册蓝图
+    # 注意：蓝图在哪使用在哪导入
+    from info.modules.index import index_blu
+    app.register_blueprint(index_blu)
+
     return app

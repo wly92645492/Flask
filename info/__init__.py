@@ -57,5 +57,7 @@ def create_app(config_name):
     # 注意：蓝图在哪使用在哪导入
     from info.modules.index import index_blu
     app.register_blueprint(index_blu)
+    from info.modules.passport import passport_blue
+    app.register_blueprint(passport_blue)
 
     return app

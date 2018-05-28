@@ -25,7 +25,7 @@ def setup_log(level):
 
 # 创建SQLAlchemy对象
 db = SQLAlchemy()
-
+redis_store = None
 
 def create_app(config_name):
     """创建app的工厂方法
@@ -45,6 +45,7 @@ def create_app(config_name):
     db.init_app(app)
 
     # 创建连接到redis数据库的对象
+    global redis_store
     redis_store = StrictRedis(host=configs[config_name].REDIS_HOST, port=configs[config_name].REDIS_PORT)
 
     # 开启CSRF保护：因为项目中的表单不再使用FlaskForm来实现，所以不会自动的开启CSRF保护，需要自己开启

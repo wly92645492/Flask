@@ -26,20 +26,20 @@ _softVersion = '2013-12-26'
 # @param datas 内容数据 格式为数组 例如：{'12','34'}，如不需替换请填 ''
 # @param $tempId 模板Id
 
-def sendTemplateSMS(to, datas, tempId):
-    # 初始化REST SDK
-    rest = REST(serverIP, serverPort, softVersion)
-    rest.setAccount(accountSid, accountToken)
-    rest.setAppId(appId)
-
-    result = rest.sendTemplateSMS(to, datas, tempId)
-    for k, v in result.iteritems():
-
-        if k == 'templateSMS':
-            for k, s in v.iteritems():
-                print('%s:%s' % (k, s))
-        else:
-            print('%s:%s' % (k, s))
+# def sendTemplateSMS(to, datas, tempId):
+#     # 初始化REST SDK
+#     rest = REST(serverIP, serverPort, softVersion)
+#     rest.setAccount(accountSid, accountToken)
+#     rest.setAppId(appId)
+#
+#     result = rest.sendTemplateSMS(to, datas, tempId)
+#     for k, v in result.iteritems():
+#
+#         if k == 'templateSMS':
+#             for k, s in v.iteritems():
+#                 print('%s:%s' % (k, s))
+#         else:
+#             print('%s:%s' % (k, s))
 
 
 class CCP(object):
@@ -69,7 +69,7 @@ class CCP(object):
             # 返回-1 表示发送失败
             return -1
 
-# if __name__ == '__main__':
-#     ccp = CCP()
-#     # 注意： 测试的短信模板编号为1
-#     ccp.send_template_sms('17600992168', ['666', 5], 1)
+if __name__ == '__main__':
+    ccp = CCP()
+    # 注意： 测试的短信模板编号为1
+    ccp.send_template_sms('18333678469', ['hello', 5], 1)

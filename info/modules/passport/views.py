@@ -1,12 +1,81 @@
 # 注册和登录
 from  . import passport_blue
-from flask import request,abort,current_app,make_response,jsonify,session
+from flask import request,abort,current_app,make_response,jsonify,session,json
 
 from info.utils.captcha.captcha import captcha
 from info import redis_store,constants,response_code,db
-import json, re, random, datetime
+import  re, random, datetime
 from info.libs.yuntongxun.sms import CCP
 from info.models import User
+
+
+@passport_blue.route('/logout',methods=['GET'])
+def logout():
+    '''退出登录'''
+    #清理session
+    try:
+        session.pop('user_id',None)
+        session.pop('mobile',None)
+        session.pop('nick_name',None)
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=response_code.RET.DBERR,errmsg='退出登录失败')
+
+    return jsonify(errno=response_code.RET.OK,errmsg='退出登录成功')
+
+
+@passport_blue.route('/login',methods=['POST'])
+def login():
+    '''登录
+    1.获取参数（手机号，密码明文）
+    2.校验参数 （判断参数是否缺少和手机号是否合法）
+    3.使用手机号查询用户信息
+    4.校验用户和密码是否正确
+    5.将状态保持信息写入到session，完成登录
+    6.记录最后一次登录之间
+    7.响应登录结果
+    '''
+    #1.获取参数（手机号，密码明文）
+    json_dict = request.json
+    mobile = json_dict.get('mobile')
+    password = json_dict.get('password')
+
+    #2.校验参数
+    if not all([mobile,password]):
+        return jsonify(errno=response_code.RET.PARAMERR,errmsg='缺少参数')
+    if not re.match(r'^1[345678][0-9]{9}$',mobile):
+        return jsonify(errno=response_code.RET.PARAMERR,errmsg='手机号格式错误')
+    # 3.还使用手机号查询用户信息
+    try:
+        user = User.query.filter(User.mobile==mobile).first()
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=response_code.RET.DBERR, errmsg='查询用户数据失败')
+    if not user:
+        return jsonify(errno=response_code.RET.PARAMERR, errmsg='用户名或密码错误')
+
+    # 4.校验用户密码是否正确
+    if not user.check_password(password):
+        return jsonify(errno=response_code.RET.PWDERR, errmsg='用户名或密码错误')
+
+    # 5.将状态保持信息写入到session,完成登录
+    session['user_id'] = user.id
+    session['mobile'] = user.mobile
+    session['nick_name'] = user.nick_name
+
+    # 6.记录最后一次登录的时间
+    user.last_login = datetime.datetime.now()
+    try:
+        db.session.commit()
+    except Exception as e:
+        current_app.logger.error(e)
+        db.session.rollback()
+        return jsonify(errno=response_code.RET.DBERR, errmsg='记录最后一次登录的时间失败')
+
+    # 7.响应登录结果
+    return jsonify(errno=response_code.RET.OK, errmsg='登录成功')
+
+
 
 @passport_blue.route('/register',methods=['POST'])
 def register():
@@ -28,11 +97,12 @@ def register():
     mobile = json_dict.get('mobile')
     smscode_client = json_dict.get('smscode')
     password = json_dict.get('password')
+    # print(json_dict)
 
     # 2.校验参数（判断是否缺少和手机号是否合法
     if not all([mobile,smscode_client,password]):
         return jsonify(erron=response_code.RET.PARAMERR,errmsg='缺少参数')
-    if not re.match(r'^1[345678][0-9]{9}$,mobile'):
+    if not re.match(r'^1[345678][0-9]{9}$',mobile):
         return jsonify(errno=response_code.RET.PARAMERR,errmsg='手机号格式错误')
 
     # 3.查询服务器的短信验证码
@@ -53,17 +123,21 @@ def register():
     user.mobile = mobile
     user.nick_name = mobile
     # TODO 密码需要加密后再存储
-    # user.password_hash = password
+
+    user.password = password  # setter方法
     # 记录最后一次登录的时间
     user.last_login = datetime.datetime.now()
 
-    # 6.将模型同步到数据库
+    # 6.将模型数据同步到数据库
     try:
         db.session.add(user)
         db.session.commit()
     except Exception as e:
         current_app.logger.error(e)
-        return jsonify(errno = response_code.RET.PARAMERR,errmsg='保存注册数据失败')
+        db.session.rollback()
+        return jsonify(errno=response_code.RET.DBERR, errmsg='保存注册数据失败')
+
+
     # 7.保存session，实现状态保持，注册及登录
     session['user_id'] = user.id
     session['mobile'] = user.mobile
@@ -116,9 +190,10 @@ def sms_code():
     # 5.如果对比成功，生成短信验证码，并发送短信
     # '%06d':如果不够6位，补0，比如28--000028
     sms_code = '%06d' % random.randint(0,999999)
-    result = CCP().send_template_sms(mobile,[sms_code,5],1)
-    if result !=0:
-        return jsonify(errno=response_code.RET.THIRDERR,errmsg='发送短信验证码失败')
+    # result = CCP().send_template_sms(mobile,[sms_code,5],1)
+    # if result !=0:
+    #     return jsonify(errno=response_code.RET.THIRDERR,errmsg='发送短信验证码失败')
+    print(sms_code)
 
     # 6.存储短信验证码到redis，方便注册时比较
     try:
@@ -128,7 +203,7 @@ def sms_code():
         return jsonify(errno=response_code.RET.DBERR,errmsg='保存短信验证码失败')
 
     # 7.响应短信验证码发送的结果
-    return jsonify(errno=response_code.RET.OK,errmst='发送短信验证码成功')
+    return jsonify(errno=response_code.RET.OK,errmsg='发送短信验证码成功')
 
 
 @passport_blue.route('/image_code',methods=['GET'])

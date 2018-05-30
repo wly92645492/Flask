@@ -19,4 +19,5 @@ manager.add_command('mysql', MigrateCommand)
 
 if __name__ == '__main__':
 
+
     manager.run()

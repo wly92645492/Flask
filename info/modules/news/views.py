@@ -26,6 +26,7 @@ def news_detail(news_id):
     2.查询点击排行
     3.查询新闻详情
     4.累加点击量
+    5.收藏和取消收藏
     '''
 
 
@@ -70,6 +71,15 @@ def news_detail(news_id):
     except Exception as e:
         current_app.logger.error(e)
         db.session.rollback()
+
+    # 5.收藏和取消收藏
+    is_collected = True
+    if user:
+        if news in user.collection_news:
+            is_collected = True
+
+    # 如果该登录用户收藏类该新闻：is_collected
+
 
     context = {
         'user':user,

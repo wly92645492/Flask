@@ -1,13 +1,13 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from redis import StrictRedis
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, generate_csrf
 from flask_session import Session
 # from config import Config, DevlopmentConfig, ProductionConfig, UnittestConfig
 from config import configs
 import logging
 from logging.handlers import RotatingFileHandler
-
+from info.utils.comment import do_rank
 
 def setup_log(level):
     """根据创建app时的配置环境，加载日志等级"""
@@ -49,7 +49,21 @@ def create_app(config_name):
     redis_store = StrictRedis(host=configs[config_name].REDIS_HOST, port=configs[config_name].REDIS_PORT,decode_responses=True)
 
     # 开启CSRF保护：因为项目中的表单不再使用FlaskForm来实现，所以不会自动的开启CSRF保护，需要自己开启
-    # CSRFProtect(app)
+    CSRFProtect(app)
+    # 使用请求钩子，实现每个响应中写入cookie
+    @app.after_request
+    def setup_csrftoken(response):
+        #生成csrf_token的值
+        csrf_token = generate_csrf()
+        #将csrf_token 的值写入到cookie
+        response.set_cookie('csrf_token',csrf_token)
+        return response
+
+
+    # 将自定义的过滤器函数添加到app的过滤器列表中
+    #rank:在模板中使用的别名
+    app.add_template_filter(do_rank,'rank')
+
 
     # 指定session数据存储在后端的位置
     Session(app)

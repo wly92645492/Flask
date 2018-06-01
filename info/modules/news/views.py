@@ -1,4 +1,6 @@
 #新闻详情，收藏，评论，点赞
+from flask import abort
+
 from . import news_blue
 from flask import render_template,session,current_app
 from info.models import User,News
@@ -12,6 +14,7 @@ def news_detail(news_id):
     :return:
     1.查询登录用户的信息
     2.查询点击排行
+    3.查询新闻详情
     '''
 
 
@@ -33,10 +36,23 @@ def news_detail(news_id):
     except Exception as e:
         current_app.logger.error(e)
 
+    # 3查询新闻详情
+    news = None
+    try:
+        news = News.query.get(news_id)
+    except Exception as e:
+        current_app.logger.error(e)
+    #后续会给404的异常准备一个友好的提示页面
+    if not news:
+        abort(404)
+
     context = {
         'user':user,
         'news_clicks':news_clicks,
-        'news':None
+        'news':news.to_dict()
     }
+
+
+
 
     return render_template('news/detail.html',context=context)

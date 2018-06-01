@@ -1,12 +1,22 @@
 #新闻详情，收藏，评论，点赞
-from flask import abort
+from flask import abort,g
+from info.utils.comment import user_login_data
 
 from . import news_blue
 from flask import render_template,session,current_app
-from info.models import User,News,db
-from info import constants
+from info.models import User,News
+from info import constants,db
+from info.utils.comment import user_login_data
+
+
+@news_blue.route('/news_collect')
+def news_collect():
+    '''新闻收藏'''
+    pass
+
 
 @news_blue.route('/detail/<int:news_id>')
+@user_login_data
 def news_detail(news_id):
     '''
     新闻详情
@@ -19,15 +29,21 @@ def news_detail(news_id):
     '''
 
 
-    # 查询登录用户的信息
-    user_id = session.get('user_id', None)
-    user = None
-    if user_id:
-        # 表示用户已经登录，然后查询用户的信息
-        try:
-            user = User.query.get(user_id)
-        except Exception as e:
-            current_app.logger.error(e)
+    # 1.查询登录用户的信息
+    # user_id = session.get('user_id', None)
+    # user = None
+    # if user_id:
+    #     # 表示用户已经登录，然后查询用户的信息
+    #     try:
+    #         user = User.query.get(user_id)
+    #     except Exception as e:
+    #         current_app.logger.error(e)
+
+    #使用函数封装获取用户信息逻辑
+    # user = user_login_data()
+
+    #从装饰器中的g变量中获取登录用户信息
+    user = g.user
 
     # 2.新闻点击排行展示
     # news_clicks = [News,News,News,News,News,News]

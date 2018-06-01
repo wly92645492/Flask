@@ -7,7 +7,7 @@ from flask_session import Session
 from config import configs
 import logging
 from logging.handlers import RotatingFileHandler
-from info.utils.comment import do_rank
+
 
 def setup_log(level):
     """根据创建app时的配置环境，加载日志等级"""
@@ -62,6 +62,7 @@ def create_app(config_name):
 
     # 将自定义的过滤器函数添加到app的过滤器列表中
     #rank:在模板中使用的别名
+    from info.utils.comment import do_rank
     app.add_template_filter(do_rank,'rank')
 
 

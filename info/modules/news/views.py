@@ -1,5 +1,8 @@
 #新闻详情，收藏，评论，点赞
-from flask import abort,g
+from flask import abort,g,jsonify
+from flask import request
+
+from info import response_code
 from info.utils.comment import user_login_data
 
 from . import news_blue
@@ -10,9 +13,54 @@ from info.utils.comment import user_login_data
 
 
 @news_blue.route('/news_collect')
+@user_login_data
 def news_collect():
     '''新闻收藏'''
-    pass
+    #1.获取登录用户信息
+    user = g.user
+    if not user:
+        return jsonify(errno=response_code.RET.SESSIONERR,errmsg='用户未登录')
+
+    #2.接受参数（news_id)
+    news_id = request.json.get('news_id')
+    action = request.json.get('action')
+
+    #3.校验参数
+    if not news_id:
+        return jsonify(errno=response_code.RET.PARAMERR,errmsg='缺少参数')
+    if action not in ['collect','cancel_colect']:
+        return jsonify(errno=response_code.RET.NODATA,errmsg='新闻数据不存在')
+
+
+    #4.查询代收藏的新闻信息
+    try:
+        news = News.query.get(news_id)
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=response_code.RET.DBERR,errmsg='查询新闻数据失败')
+    if not news:
+        return jsonify(errno=response_code.RET.NODATA,errmsg='新闻数据不存在')
+
+    #5.收藏新闻
+    if action == 'collect':
+        #当要收藏的新闻不再用户收藏的列表中是时，才需要收藏
+        if news not in user.collection_news:
+            user.collection_news.append(news)
+    else:
+        #当要取消收藏的新闻在用户收藏列表中才需要取消收藏
+        if news in user.collection_news:
+            user.collection_news.remove(news)
+    try:
+        db.session.commit()
+    except Exception as e:
+        current_app.logger.error(e)
+        db.session.rollback()
+        return jsonify(errno=response_code.RET.DBERR,errmsg='操作失败')
+
+    #6.响应操作结果
+    return jsonify(errno=response_code.RET.OK,errmsg='操作成功')
+
+
 
 
 @news_blue.route('/detail/<int:news_id>')

@@ -38,8 +38,8 @@ def user_login_data(view_func):
             except Exception as e:
                 current_app.logger.error(e)
 
-            #使用全局的g变量存储查询出来的登录用户信息
-            g.user = user
+        #使用全局的g变量存储查询出来的登录用户信息
+        g.user = user
 
         #执行被装饰的视图函数
         return view_func(*args,**kwargs)

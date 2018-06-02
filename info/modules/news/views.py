@@ -12,7 +12,7 @@ from info import constants,db
 from info.utils.comment import user_login_data
 
 
-@news_blue.route('/news_collect')
+@news_blue.route('/news_collect',methods=['POST'])
 @user_login_data
 def news_collect():
     '''新闻收藏'''
@@ -20,28 +20,30 @@ def news_collect():
     user = g.user
     if not user:
         return jsonify(errno=response_code.RET.SESSIONERR,errmsg='用户未登录')
-
+    # print( request.json)
     #2.接受参数（news_id)
     news_id = request.json.get('news_id')
+    # print(news_id)
     action = request.json.get('action')
 
     #3.校验参数
     if not news_id:
         return jsonify(errno=response_code.RET.PARAMERR,errmsg='缺少参数')
-    if action not in ['collect','cancel_colect']:
+    if action not in ['collect','cancel_collect']:
         return jsonify(errno=response_code.RET.NODATA,errmsg='新闻数据不存在')
 
 
     #4.查询代收藏的新闻信息
     try:
         news = News.query.get(news_id)
+        print(news)
     except Exception as e:
         current_app.logger.error(e)
         return jsonify(errno=response_code.RET.DBERR,errmsg='查询新闻数据失败')
     if not news:
         return jsonify(errno=response_code.RET.NODATA,errmsg='新闻数据不存在')
 
-    #5.收藏新闻
+    #5.收藏和取消收藏
     if action == 'collect':
         #当要收藏的新闻不再用户收藏的列表中是时，才需要收藏
         if news not in user.collection_news:
@@ -121,7 +123,7 @@ def news_detail(news_id):
         db.session.rollback()
 
     # 5.收藏和取消收藏
-    is_collected = True
+    is_collected = False
     if user:
         if news in user.collection_news:
             is_collected = True
@@ -132,10 +134,11 @@ def news_detail(news_id):
     context = {
         'user':user,
         'news_clicks':news_clicks,
-        'news':news.to_dict()
+        'news':news.to_dict(),
+        'is_collected':is_collected
     }
 
 
 
-
+    #模板渲染
     return render_template('news/detail.html',context=context)

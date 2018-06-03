@@ -150,6 +150,7 @@ $(function(){
             $(this).next().toggle();
         }
 
+        //TODO:点赞
         if(sHandler.indexOf('reply_cancel')>=0)
         {
             $(this).parent().toggle();

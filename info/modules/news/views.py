@@ -40,7 +40,8 @@ def comment_like():
 
     #5.查询要点赞的评论的是否存在，查询当前登录的用户是否给当前评论点过赞
     try:
-        comment_like_model = CommentLike.query.filter(CommentLike.comment_id==comment_id,CommentLike.user_id==user.id)
+        comment_like_model = CommentLike.query.filter(CommentLike.comment_id==comment_id,CommentLike.user_id==user.id).first()
+
     except Exception as e:
         current_app.logger.error(e)
         return jsonify(errno=response_code.RET.DBERR,errmsg='查询点赞失败')
@@ -56,6 +57,7 @@ def comment_like():
             db.session.add(comment_like_model)
             #累加点赞量
             comment.like_count +=1
+            print(comment.like_count)
     else:
         #取消点赞
         if comment_like_model:

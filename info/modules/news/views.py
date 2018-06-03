@@ -1,16 +1,14 @@
 #新闻详情，收藏，评论，点赞
 from flask import abort,g,jsonify
 from flask import request
-
 from info import response_code
 from info.modules import news
 from info.utils.comment import user_login_data
-
-from . import news_blue
 from flask import render_template,session,current_app
 from info.models import User,News, Comment, CommentLike
 from info import constants,db
 from info.utils.comment import user_login_data
+from . import news_blue
 
 @news_blue.route('/comment_like',methods=['POST'])
 @user_login_data
@@ -31,7 +29,7 @@ def comment_like():
     if action not in ['add','remove']:
         return jsonify(errno=response_code.RET.PARAMERR,errmsg='参数有误')
 
-    #4.查询要点
+    #4.根据客户端传入的comment_id查询出要点赞的评论
     try:
         comment = Comment.query.get(comment_id)
     except Exception as e:
@@ -205,6 +203,8 @@ def news_detail(news_id):
     3.查询新闻详情
     4.累加点击量
     5.收藏和取消收藏
+    6.展示用户的评论
+    7.展示评论点的赞
     '''
 
 
@@ -258,12 +258,41 @@ def news_detail(news_id):
 
     # 如果该登录用户收藏类该新闻：is_collected
 
+    #6.展示用户的评论
+    comments = []
+    try:
+        comments =Comment.query.filter(Comment.news_id==news_id).order_by(Comment.create_time.desc()).all()
+    except Exception as e:
+        current_app.logger.error(e)
+
+    #7.展示评论点的赞
+    comment_like_ids = []
+    if user:
+        try:
+            #查询用户点赞了哪些评论
+            comment_likes = CommentLike.query.filter(CommentLike.user_id==user.id).all()
+            #取出所有被用户点赞的评论id
+            comment_like_ids = [comment_like.comment_id for comment_like in comment_likes]
+        except Exception as e:
+            current_app.logger.error(e)
+
+    #因为希望界面渲染的数据是经过处理的，所以不使用模型类的原始的数据，而是把每个模型类转成字典to_dict()
+    comment_dict_list = []
+    for comment in comments:
+        comment_dict = comment.to_dict()
+
+        comment_dict['is_like'] = False
+        if comment.id in comment_like_ids:
+            comment_dict['is_like'] = True
+
+        comment_dict_list.append(comment_dict)
 
     context = {
         'user':user,
         'news_clicks':news_clicks,
         'news':news.to_dict(),
-        'is_collected':is_collected
+        'is_collected':is_collected,
+        'comments':comment_dict_list
     }
 
 

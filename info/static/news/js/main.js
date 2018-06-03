@@ -282,7 +282,6 @@ function sendSMSCode() {
                     num -= 1;
                 }, 1000);
             } else {
-
                 alert(response.errmsg);
                 // 重新生成验证码
                 generateImageCode();

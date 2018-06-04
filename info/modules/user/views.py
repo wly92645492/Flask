@@ -10,7 +10,7 @@ from info.utils.comment import user_login_data
 from . import user_blue
 from flask import render_template,redirect
 
-@user_blue.route('/pic_info')
+@user_blue.route('/pic_info',methods=['GET','POST'])
 @user_login_data
 def pic_info():
     '''设置头像'''
@@ -27,6 +27,9 @@ def pic_info():
         }
         #渲染界面
         return render_template('news/user_pic_info.html',context=context)
+    #3.POST请求逻辑：上传用户头像
+    if request.method == 'POST':
+        pass
 
 
 

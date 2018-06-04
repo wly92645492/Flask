@@ -40,7 +40,7 @@ def user_login_data(view_func):
 
         #使用全局的g变量存储查询出来的登录用户信息
         g.user = user
-
+        # user = g.user
         #执行被装饰的视图函数
         return view_func(*args,**kwargs)
     return wapper

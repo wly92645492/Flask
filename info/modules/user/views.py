@@ -10,6 +10,27 @@ from info.utils.comment import user_login_data
 from . import user_blue
 from flask import render_template,redirect
 
+@user_blue.route('/pic_info')
+@user_login_data
+def pic_info():
+    '''设置头像'''
+    #1.获取用户登录信息
+    user = g.user
+    if not user:
+        return redirect(url_for('index.index'))
+
+    #2.实现GET请求逻辑
+    if request.method == 'GET':
+        #渲染模板
+        context = {
+            'user':user
+        }
+        #渲染界面
+        return render_template('news/user_pic_info.html',context=context)
+
+
+
+
 @user_blue.route('/info')
 @user_login_data
 def user_info():

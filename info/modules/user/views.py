@@ -5,10 +5,12 @@ from flask import request
 from flask import session
 from flask import url_for
 
-from info import response_code, db
+from info import response_code, db,constants
 from info.utils.comment import user_login_data
-from . import user_blue
+
 from flask import render_template,redirect
+from info.utils.file_storage import upload_file
+from . import user_blue
 
 @user_blue.route('/pic_info',methods=['GET','POST'])
 @user_login_data
@@ -23,15 +25,45 @@ def pic_info():
     if request.method == 'GET':
         #渲染模板
         context = {
-            'user':user
+            'user':user.to_dict()
         }
         #渲染界面
         return render_template('news/user_pic_info.html',context=context)
     #3.POST请求逻辑：上传用户头像
     if request.method == 'POST':
-        pass
+        #3.1获取参数
+        avatar_file = request.files.get('avatar')
 
+        #3.2校验参数
+        try:
+            avatar_data = avatar_file.read()
+        except Exception as e:
+            current_app.logger.error(e)
+            return jsonify(errno=response_code.RET.PARAMERR,errmsg='获取头像数据失败')
 
+        #3.3调用上传方法，将图片上传到七牛云
+        try:
+            key = upload_file(avatar_data)
+        except Exception as e:
+            current_app.logger.error(e)
+            return jsonify(errno=response_code.RET.THIRDERR,errmsg='上传图片失败')
+
+        #3.4保存到数据库
+        user.avatar_url = key
+
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(e)
+            return jsonify(errno=response_code.RET.DBERR,errmsg='保存用户头像数据失败')
+
+        data = {
+            'avatar':constants.QINIU_DOMIN_PREFIX + key
+        }
+
+        # 3.5响应头像上传结果
+        return jsonify(errno=response_code.RET.OK,errmsg='头像上传成功',data=data)
 
 
 @user_blue.route('/info')
@@ -46,7 +78,7 @@ def user_info():
         return redirect(url_for('index.index'))
 
     context = {
-        'user':user
+        'user':user.to_dict()
     }
     return render_template('/news/user.html',context=context)
 

@@ -4,13 +4,104 @@ from flask import g, jsonify
 from flask import request
 from flask import session
 from flask import url_for
-
 from info import response_code, db,constants
 from info.utils.comment import user_login_data
-
 from flask import render_template,redirect
 from info.utils.file_storage import upload_file
 from . import user_blue
+from info.models import check_password_hash
+
+@user_blue.route('/user_collection')
+@user_login_data
+def user_collection():
+    '''我的收藏'''
+    #1.获取用户登录信息
+    user = g.user
+    if not user:
+        return redirect(url_for('index.index'))
+
+    #2.获取参数：page
+    page = request.args.get('p','1')
+
+    #3.校验参数：是否整数
+    try:
+        page = int(page)
+    except Exception as e:
+        current_app.logger.error(e)
+        page = '1'
+
+    #4.分页查询:user.collection_news = BaseQuery类型的对象，当前第几页，每页显示几条数据
+    paginate = None
+    try:
+        #paginate对象没有all的属性
+        paginate = user.collection_news.paginate(page,constants.USER_COLLECTION_MAX_NEWS,False)
+    except Exception as e:
+        current_app.logger.error(e)
+
+    #5.构造渲染模板的数据
+    news_list = paginate.items
+    total_page = paginate.pages
+    current_page =paginate.page
+
+    news_dict_list = []
+    for news in news_list:
+        news_dict_list.append(news.to_basic_dict())
+
+    context = {
+        'news_list':news_dict_list,
+        'total_page':total_page,
+        'current_page':current_page
+    }
+
+
+    #6.渲染模板
+    return render_template('news/user_collection.html',context=context)
+
+
+
+
+
+@user_blue.route('/pass_info',methods=['GET','POST'])
+@user_login_data
+def pass_info():
+    '''修改密码'''
+    #1.获取用户登录信息
+    user = g.user
+    if not user:
+        return redirect(url_for('index.index'))
+
+    #2.请求方法为GET
+    if request.method =='GET':
+        return render_template('news/user_pass_info.html')
+
+    #3.请求方法为POST的业务逻辑
+    if request.method == 'POST':
+        #3.1获取参数
+        old_password = request.json.get('old_password')
+        new_password = request.json.get('new_password')
+
+        #3.2校验参数
+        if not all([old_password,new_password]):
+            return jsonify(errno=response_code.RET.PARAMERR,errmsg='缺少参数')
+        #判断输入密码是否是该用户的密码
+        if not user.check_password(old_password):
+            return jsonify(errno=response_code.RET.PARAMERR,errmsg='原密码输入错误')
+
+        #3.3更新到数据 password:setter方法
+        user.password = new_password
+
+        #3.4将数据同步到数据库
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(e)
+            return jsonify(errno=response_code.RET.DBERR,errmsg='保存修改后的密码失败')
+
+
+        #3.5响应结果
+        return jsonify(errno=response_code.RET.OK,errmsg='密码修改成功')
+
 
 @user_blue.route('/pic_info',methods=['GET','POST'])
 @user_login_data

@@ -9,7 +9,7 @@ from info.utils.comment import user_login_data
 from flask import render_template,redirect
 from info.utils.file_storage import upload_file
 from . import user_blue
-from info.models import check_password_hash,Category
+from info.models import check_password_hash,Category, News
 
 
 @user_blue.route('/news_release',methods=['GET','POST'])
@@ -39,7 +39,56 @@ def news_release():
 
     #3.请求方法为POST
     if request.method == 'POST':
-        pass
+        #3.1接收参数
+        title = request.form.get('title')
+        source = '个人发布'
+        digest = request.form.get('digest')
+        content = request.form.get('content')
+        indext_image = request.files.get('index_image')
+        category_id = request.form.get('category_id')
+
+        #3.2校验参数
+        if not all([title,source,digest,content,indext_image,category_id]):
+            return jsonify(errno = response_code.RET.PARAMERR,errmsg='缺少参数')
+
+
+        #3.3读取用户上传的新闻图片
+        try:
+            indext_image_data = indext_image.read()
+        except Exception as e:
+            current_app.logger.error(e)
+            return jsonify(errno = response_code.RET.PARAMERR,errmsg='读取新闻数据失败')
+
+        #3.4将用户上传的图片转存到七牛云
+        try:
+            key = upload_file(indext_image_data)
+        except Exception as e:
+            current_app.logger.error(e)
+            return jsonify(errno=response_code.RET.THIRDERR,errmsg='上传新闻图片失败')
+
+        #3.5创建News新闻模型对象，并赋值和同步到数据库
+        news = News()
+        news.title = title
+        news.digest = digest
+        news.source = source
+        news.content = content
+
+        news.index_image_url = constants.QINIU_DOMIN_PREFIX + key
+        news.category_id = category_id
+        news.user_id = user.id
+
+        news.status = 1
+
+        try:
+            db.session.add(news)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(e)
+            return jsonify(errno=response_code.RET.DBERR,errmsg='保存新闻数据失败')
+
+        #3.6响应新闻发布的结果
+        return jsonify(errno=response_code.RET.OK,errmsg='新闻发布成功')
 
 
 

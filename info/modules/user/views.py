@@ -9,7 +9,40 @@ from info.utils.comment import user_login_data
 from flask import render_template,redirect
 from info.utils.file_storage import upload_file
 from . import user_blue
-from info.models import check_password_hash
+from info.models import check_password_hash,Category
+
+
+@user_blue.route('/news_release',methods=['GET','POST'])
+@user_login_data
+def news_release():
+    '''用户新闻发布'''
+    #1判断用户登录信息
+    user = g.user
+    if not user:
+        return redirect(url_for('index.index'))
+
+    #2.请求方法为GET方法：渲染新闻分类
+    if request.method == 'GET':
+        #2.1渲染新闻分类
+        categories = []
+        try:
+            categories = Category.query.all()
+        except Exception as e:
+            current_app.logger.error(e)
+
+        #删除最新分类
+        categories.pop(0)
+        context = {
+            'categories':categories
+        }
+        return render_template('news/user_news_release.html',context=context)
+
+    #3.请求方法为POST
+    if request.method == 'POST':
+        pass
+
+
+
 
 @user_blue.route('/user_collection')
 @user_login_data

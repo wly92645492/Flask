@@ -17,6 +17,9 @@ def logout():
         session.pop('user_id',None)
         session.pop('mobile',None)
         session.pop('nick_name',None)
+
+        #为了防止管理员误入前台留下is_admin = True,所以无论是谁登录只要退出都要去清理is_admin
+        session.pop('is_admin',False)
     except Exception as e:
         current_app.logger.error(e)
         return jsonify(errno=response_code.RET.DBERR,errmsg='退出登录失败')

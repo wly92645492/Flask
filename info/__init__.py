@@ -77,7 +77,7 @@ def create_app(config_name):
         }
 
         '''友好的404界面，提供更个项目使用的'''
-        return render_template('news/404.html',context=context)
+        return render_template('news/404.html',context=context )
 
 
     # 指定session数据存储在后端的位置
@@ -93,5 +93,7 @@ def create_app(config_name):
     app.register_blueprint(news_blue)
     from info.modules.user import user_blue
     app.register_blueprint(user_blue)
+    from info.modules.admain import admin_blue
+    app.register_blueprint(admin_blue)
 
     return app

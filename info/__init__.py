@@ -1,4 +1,5 @@
 from flask import Flask
+from flask import g
 from flask_sqlalchemy import SQLAlchemy
 from redis import StrictRedis
 from flask_wtf.csrf import CSRFProtect, generate_csrf
@@ -7,6 +8,7 @@ from flask_session import Session
 from config import configs
 import logging
 from logging.handlers import RotatingFileHandler
+from flask import render_template
 
 
 def setup_log(level):
@@ -64,6 +66,18 @@ def create_app(config_name):
     #rank:在模板中使用的别名
     from info.utils.comment import do_rank
     app.add_template_filter(do_rank,'rank')
+
+    from info.utils.comment import user_login_data
+    @app.errorhandler(404)
+    @user_login_data
+    def page_not_found(e):
+        user = g.user
+        context = {
+            'user':user.to_dict() if user else None
+        }
+
+        '''友好的404界面，提供更个项目使用的'''
+        return render_template('news/404.html',context=context)
 
 
     # 指定session数据存储在后端的位置

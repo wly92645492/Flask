@@ -6,7 +6,7 @@ admin_blue = Blueprint('admin', __name__,url_prefix='/admin')
 from . import views
 
 
-@admin_blue.before_request()
+@admin_blue.before_request
 def check_admin():
     '''验证用户身份是否是admin'''
     is_admin = session.get('is_admin',False)

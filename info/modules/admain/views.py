@@ -2,16 +2,133 @@
 import time
 
 import datetime
+
+from flask import abort
 from flask import current_app
 from flask import g
 from flask import redirect
 from flask import session
 from flask import url_for
 
-from info.models import User
+from info import constants
+from info.models import User, News
 from info.utils.comment import user_login_data
-from . import admin_blue
 from flask import request,render_template
+from . import admin_blue
+
+
+@admin_blue.route('news_review_detail/<int:news_id>')
+def nwes_review_detail(news_id):
+    '''待审核新闻详情'''
+    #1.查询出要审核的新闻的详情
+    news = None
+    try:
+        news = News.query.get(news_id)
+    except Exception as e:
+        current_app.logger.error(e)
+        abort(404)
+
+    if not news:
+        abort(404)
+
+    #2.渲染数据
+    context = {
+        'news':news.to_dict()
+    }
+
+    return render_template('admin/news_review_detail.html',context=context)
+
+
+
+
+@admin_blue.route('/news_review')
+def news_review():
+    '''后台新闻审核列表'''
+
+    #1接收参数
+    page = request.args.get('p','1')
+    keyword = request.args.get('keyword')
+
+    #2校验参数
+    try:
+        page = int(page)
+    except Exception as e:
+        current_app.logger.error(e)
+        page = '1'
+
+    #3分页查询
+    news_list = []
+    total_page = 1
+    current_page = 1
+
+    try:
+        if keyword:
+            paginate = News.query.filter(News.title.contains(keyword), News.status != 0).order_by(
+                News.create_time.desc()).paginate(page, constants.ADMIN_NEWS_PAGE_MAX_COUNT, False)
+        else:
+            paginate = News.query.filter(News.status != 0).order_by(News.create_time.desc()).paginate(page,
+                                                                                              constants.ADMIN_NEWS_PAGE_MAX_COUNT,
+                                                                                                      False)
+        news_list = paginate.items
+        total_page = paginate.pages
+        current_page=paginate.page
+    except Exception as e:
+        current_app.logger.error(e)
+        abort(404)
+
+    #4构造渲染数据
+    news_dict_list =[]
+    for news in news_list:
+        news_dict_list.append(news.to_review_dict())
+    context = {
+        'news_list':news_dict_list,
+        'total_page':total_page,
+        'current_page':current_page
+    }
+
+    #5响应结果
+    return render_template('admin/news_review.html',context=context)
+
+
+@admin_blue.route('/user_list')
+def user_list():
+    '''用户列表'''
+    #1接收参数
+    page = request.args.get('p','1')
+
+    #2校验参数
+    try:
+        page = int(page)
+    except Exception as e:
+        current_app.logger.error(e)
+        page = 1
+
+    #3分页查询用户列表 管理员除外
+    users = []
+    total_page = 1
+    current_page = 1
+    try:
+        paginate = User.query.filter(User.is_admin == False).paginate(page,constants.ADMIN_NEWS_PAGE_MAX_COUNT,False)
+        users = paginate.items
+        total_page = paginate.pages
+        current_page = paginate.page
+    except Exception as e:
+        current_app.logger.error(e)
+        abort(404)
+
+    user_dict_list = []
+    for user in users:
+        user_dict_list.append(user.to_admin_dict())
+
+
+    #4构造渲染数据
+    context = {
+        'users':user_dict_list,
+        'total_page':total_page,
+        'current_page':current_page
+    }
+
+    return render_template('admin/user_list.html',context = context)
 
 
 @admin_blue.route('/user_count')

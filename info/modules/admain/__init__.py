@@ -18,5 +18,5 @@ def check_admin():
     #2.3小猪佩奇输入 http://127.0.0.1:5000/admin/login
     #3.如果管理员进入后台，又误入前台，退出时会留下私生子（session is_admin = True
 
-    if not is_admin and not request.url.endswith('/admin/login'):
+    if not is_admin and not request.url.endswith('/admin/login') and not request.url.endswith('/admin/user_count'):
         return redirect(url_for('index.index'))

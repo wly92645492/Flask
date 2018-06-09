@@ -36,11 +36,11 @@
 
             $(function(){
                 $("#pagination").pagination({
-                    currentPage: current_page,
-                    totalPage: total_page,
+                    currentPage:{{ context.current_page }},
+                    totalPage: {{ context.total_page }},
                     callback: function(current) {
 
-                        window.location.href = '/user/user_news_list?p=' + current
+                        window.location.href = '/user/news_list?p=' + current
                     }
                 });
             });

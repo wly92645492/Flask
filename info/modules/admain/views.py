@@ -3,21 +3,68 @@ import time
 
 import datetime
 
-from flask import abort
+from flask import abort, jsonify
 from flask import current_app
 from flask import g
 from flask import redirect
 from flask import session
 from flask import url_for
 
-from info import constants
+from info import constants, db
+from info import response_code
 from info.models import User, News
 from info.utils.comment import user_login_data
 from flask import request,render_template
 from . import admin_blue
 
+@admin_blue.route('/news_review_action',methods = ["POST"])
+def news_review_action():
+    '''审核新闻实现 ajax请求，json数据
+    '''
+    #1接收参数
+    news_id = request.json.get('news_id')
+    action = request.json.get('action')
 
-@admin_blue.route('news_review_detail/<int:news_id>')
+    #2校验参数
+    if not all ([news_id,action]):
+        return jsonify(errno = response_code.RET.PARAMERR,errmsg='缺少参数')
+    if action not in ['accept','reject']:
+        return jsonify(errno = response_code.RET.PARAMERR,errmst='参数有误')
+
+    #3查询待审核的新闻是否存在
+    news = None
+    try:
+        news = News.query.get(news_id)
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=response_code.RET.DBERR,errmsg='查询新闻数据失败')
+
+    #4实现审核逻辑
+    if action == 'accept':
+        #通过
+        news.status =0
+    else:
+        #未通过
+        news.status = -1
+        #给出未通过理由
+        reason = request.json.get('reason')
+        if not reason:
+            return jsonify(errno=response_code.RET.PARAMERR,errmsg='缺少拒绝通过的理由')
+        news.reason = reason
+
+    #5同步到数据库
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(e)
+        return jsonify(errno=response_code.RET.DBERR,errmsg='保存数据失败')
+    return jsonify(errno = response_code.RET.OK,errmsg='OK')
+
+
+
+
+@admin_blue.route('/news_review_detail/<int:news_id>')
 def nwes_review_detail(news_id):
     '''待审核新闻详情'''
     #1.查询出要审核的新闻的详情
@@ -37,8 +84,6 @@ def nwes_review_detail(news_id):
     }
 
     return render_template('admin/news_review_detail.html',context=context)
-
-
 
 
 @admin_blue.route('/news_review')

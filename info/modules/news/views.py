@@ -10,6 +10,60 @@ from info import constants,db
 from info.utils.comment import user_login_data
 from . import news_blue
 
+@news_blue.route('/followed_user', methods=['POST'])
+@user_login_data
+def followed_user():
+    """关注和取消关注"""
+
+    # 1.获取登录用户信息
+    login_user = g.user
+    if not login_user:
+        return jsonify(errno=response_code.RET.SESSIONERR, errmsg='用户未登录')
+
+    # 2.接受参数
+    user_id = request.json.get('user_id')
+    action = request.json.get('action')
+
+    # 3.校验参数
+    if not all([user_id,action]):
+        return jsonify(errno=response_code.RET.PARAMERR, errmsg='缺少参数')
+    if action not in ['follow','unfollow']:
+        return jsonify(errno=response_code.RET.PARAMERR, errmsg='参数错误')
+
+    # 4.查询要关注的人是否存在
+    try:
+        other = User.query.get(user_id)
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=response_code.RET.DBERR, errmsg='查询用户失败')
+    if not other:
+        return jsonify(errno=response_code.RET.NODATA, errmsg='用户不存在')
+
+    # 5.实现关注和取消关注
+    if action == 'follow':
+        # 关注
+        if other not in login_user.followed:
+            login_user.followed.append(other)
+        else:
+            return jsonify(errno=response_code.RET.DATAEXIST, errmsg='已关注')
+    else:
+        # 取消关注
+        if other in login_user.followed:
+            login_user.followed.remove(other)
+        else:
+            return jsonify(errno=response_code.RET.DATAEXIST, errmsg='未关注')
+
+    # 6.同步到数据库
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(e)
+        return jsonify(errno=response_code.RET.DBERR, errmsg='保存到数据库失败')
+
+    # 7.响应结果
+    return jsonify(errno=response_code.RET.OK, errmsg='OK')
+
 @news_blue.route('/comment_like',methods=['POST'])
 @user_login_data
 def comment_like():
@@ -196,37 +250,23 @@ def news_collect():
 @news_blue.route('/detail/<int:news_id>')
 @user_login_data
 def news_detail(news_id):
-    '''
+    """
     新闻详情
-    :param news_id:要查询的新闻的id
-    :return:
-    1.查询登录用户的信息
+    :param news_id: 要查询的新闻的id
+    1.查询登录用户信息
     2.查询点击排行
     3.查询新闻详情
     4.累加点击量
     5.收藏和取消收藏
     6.展示用户的评论
     7.展示评论点的赞
-    '''
-
-
-    # 1.查询登录用户的信息
-    # user_id = session.get('user_id', None)
-    # user = None
-    # if user_id:
-    #     # 表示用户已经登录，然后查询用户的信息
-    #     try:
-    #         user = User.query.get(user_id)
-    #     except Exception as e:
-    #         current_app.logger.error(e)
-
-    #使用函数封装获取用户信息逻辑
-    # user = user_login_data()
-
-    #从装饰器中的g变量中获取登录用户信息
+    8.关注和取消关注
+    """
+    # 1.查询登录用户信息
+    # 从装饰器中的g变量中获取登录用户信息
     user = g.user
 
-    # 2.新闻点击排行展示
+    # 2.查询点击排行
     # news_clicks = [News,News,News,News,News,News]
     news_clicks = []
     try:
@@ -234,13 +274,14 @@ def news_detail(news_id):
     except Exception as e:
         current_app.logger.error(e)
 
-    # 3查询新闻详情
+    # 3.查询新闻详情
     news = None
     try:
         news = News.query.get(news_id)
     except Exception as e:
         current_app.logger.error(e)
-    #后续会给404的异常准备一个友好的提示页面
+
+    # 后续会给404的异常准备一个友好的提示页面
     if not news:
         abort(404)
 
@@ -255,49 +296,64 @@ def news_detail(news_id):
     # 5.收藏和取消收藏
     is_collected = False
     if user:
-        if news in user.collection_news:
+       if news in user.collection_news:
             is_collected = True
 
-    # 如果该登录用户收藏类该新闻：is_collected
-
-    #6.展示用户的评论
+    # 6.展示用户的评论
     comments = []
     try:
-        comments =Comment.query.filter(Comment.news_id==news_id).order_by(Comment.create_time.desc()).all()
+        comments = Comment.query.filter(Comment.news_id==news_id).order_by(Comment.create_time.desc()).all()
     except Exception as e:
         current_app.logger.error(e)
 
-    #7.展示评论点的赞
-    comment_like_ids = []
+    # 7.展示评论点的赞
+    comment_like_ids = [] # comment_like_ids == [21,22]
     if user:
         try:
-            #查询用户点赞了哪些评论
+            # 查询用户点赞了哪些评论
             comment_likes = CommentLike.query.filter(CommentLike.user_id==user.id).all()
-            #取出所有被用户点赞的评论id
+            # 取出所有被用户点赞的评论id
             comment_like_ids = [comment_like.comment_id for comment_like in comment_likes]
         except Exception as e:
             current_app.logger.error(e)
 
-    #因为希望界面渲染的数据是经过处理的，所以不使用模型类的原始的数据，而是把每个模型类转成字典to_dict()
+    # 因为我希望界面渲染的数据，是经过处理的，所以我不适用模型类原始的数据，而把每个模型类转成字典to_dict()
     comment_dict_list = []
     for comment in comments:
         comment_dict = comment.to_dict()
 
+        # 给comment_dict追加一个is_like用于记录该评论是否被登录用户点赞了
+        # 14  ----  [21,22]   False
+        # 15  ----  [21,22]   False ...
+        # 21  ----  [21,22]   True
+        # 22  ----  [21,22]   True
         comment_dict['is_like'] = False
         if comment.id in comment_like_ids:
             comment_dict['is_like'] = True
 
         comment_dict_list.append(comment_dict)
 
+    # 8.关注和取消关注显示逻辑
+    is_followed = False
+
+    # 当用户已登录且登录用户正在看的新闻有作者
+    # user ； 176（登录用户）
+    # news.user ： 佩奇（登录用户正在看的新闻的作者）
+    if user and news.user:
+        # news.user ： 佩奇
+        # user.followed : 176关注的人
+        if news.user in user.followed:
+            is_followed = True
+
     context = {
-        'user':user.to_dict() if user else None,
+        # 'user':user.to_dict(),
+        'user': user.to_dict() if user else None,
         'news_clicks':news_clicks,
         'news':news.to_dict(),
         'is_collected':is_collected,
-        'comments':comment_dict_list
+        'comments':comment_dict_list,
+        'is_followed':is_followed
     }
 
-
-
-    #模板渲染
-    return render_template('news/detail.html',context=context)
+    # 渲染模板
+    return render_template('news/detail.html', context=context)

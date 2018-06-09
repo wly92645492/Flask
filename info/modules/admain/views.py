@@ -15,7 +15,11 @@ from info import response_code
 from info.models import User, News, Category
 from info.utils.comment import user_login_data
 from flask import request,render_template
+
+from info.utils.file_storage import upload_file
 from . import admin_blue
+
+
 
 @admin_blue.route('/news_type',methods=['GET','POST'])
 def news_type():

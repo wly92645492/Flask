@@ -12,10 +12,42 @@ from flask import url_for
 
 from info import constants, db
 from info import response_code
-from info.models import User, News
+from info.models import User, News, Category
 from info.utils.comment import user_login_data
 from flask import request,render_template
 from . import admin_blue
+
+@admin_blue.route('/news_edit_detail/<int:news_id>')
+def news_edit_detail(news_id):
+    '''新闻版式编辑详情'''
+    #1直接查询要编辑的新闻
+    news = None
+    try:
+        news = News.query.get(news_id)
+    except Exception as e:
+        current_app.logger.error(e)
+        abort(404)
+    if not news:
+        abort(404)
+
+    #直接查询分类
+    categories = []
+    try:
+        categories = Category.query.all()
+        categories.pop(0)
+    except Exception as e:
+        current_app.logger.error(e)
+        abort(404)
+
+
+    #构造渲染数据
+    context = {
+        'news':news.to_dict(),
+        'categories':categories
+    }
+
+    return render_template('admin/news_edit_detail.html',context=context)
+
 
 @admin_blue.route('/news_edit')
 def news_edit():
@@ -23,6 +55,7 @@ def news_edit():
 
     #1.接收参数
     page = request.args.get('p','1')
+    keyword = request.args.get('keyword')
 
     #2.校验参数
     try:
@@ -36,7 +69,10 @@ def news_edit():
     total_page = 1
     current_page = 1
     try:
-        paginate = News.query.filter(News.status==0).order_by(News.create_time.desc()).paginate(page,constants.ADMIN_NEWS_PAGE_MAX_COUNT,False)
+        if keyword:
+            paginate = News.query.filter(News.title.contains(keyword),News.status==0).order_by(News.create_time.desc()).paginate(page,constants.ADMIN_NEWS_PAGE_MAX_COUNT,False)
+        else:
+            paginate = News.query.filter(News.status == 0).order_by(News.create_time.desc()).paginate(page,constants.ADMIN_NEWS_PAGE_MAX_COUNT,False)
         news_list = paginate.items
         total_page = paginate.pages
         current_page = paginate.page
